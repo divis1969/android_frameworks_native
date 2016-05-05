@@ -302,7 +302,19 @@ enum {
     AKEYCODE_TV_CONTENTS_MENU = 256,
     AKEYCODE_TV_MEDIA_CONTEXT_MENU = 257,
     AKEYCODE_TV_TIMER_PROGRAMMING = 258,
-    AKEYCODE_HELP            = 259
+    AKEYCODE_HELP            = 259,
+
+    /* MTK/Meizu key codes */
+    AKEYCODE_WIFI_TOGGLE = 260,
+    AKEYCODE_BT_TOGGLE = 261,
+    AKEYCODE_LOCK_TOGGLE = 262,
+    AKEYCODE_IME_TOGGLE = 263,
+    AKEYCODE_MESSAGING = 264,
+    AKEYCODE_GALLERY = 265,
+    AKEYCODE_GESTURE = 266,
+    AKEYCODE_SLIDE = 267,
+    AKEYCODE_UNLOCK = 268,
+    AKEYCODE_FINGERPRINT = 269,
 
     // NOTE: If you add a new keycode here you must also add it to several other files.
     //       Refer to frameworks/base/core/java/android/view/KeyEvent.java for the full list.
