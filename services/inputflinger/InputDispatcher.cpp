@@ -55,6 +55,7 @@
 #include <errno.h>
 #include <limits.h>
 #include <time.h>
+#include <dlfcn.h>
 
 #define INDENT "  "
 #define INDENT2 "    "
@@ -87,6 +88,16 @@ const nsecs_t SLOW_EVENT_PROCESSING_WARNING_TIMEOUT = 2000 * 1000000LL; // 2sec
 
 // Number of recent events to keep for debugging purposes.
 const size_t RECENT_QUEUE_MAX_SIZE = 10;
+
+// MTK
+#define SCN_APP_TOUCH     5
+typedef int (*PerfServiceBoostEnableAsyncPtr)(int);
+static PerfServiceBoostEnableAsyncPtr gPerfServiceBoostEnableAsyncPtr = NULL;
+typedef int (*PerfServiceBoostEnableTimeoutAsyncPtr)(int);
+static PerfServiceBoostEnableTimeoutAsyncPtr gPerfServiceBoostEnableTimeoutAsyncPtr = NULL;
+typedef int (*PerfServiceBoostDisableAsyncPtr)(int);
+static PerfServiceBoostDisableAsyncPtr gPerfServiceBoostDisableAsyncPtr = NULL;
+// end MTK
 
 static inline nsecs_t now() {
     return systemTime(SYSTEM_TIME_MONOTONIC);
@@ -205,6 +216,38 @@ InputDispatcher::InputDispatcher(const sp<InputDispatcherPolicyInterface>& polic
     mLooper = new Looper(false);
 
     mKeyRepeatState.lastKeyEntry = NULL;
+
+    if (gPerfServiceBoostEnableAsyncPtr == NULL) {
+        ALOGE("Opening libperfservicenative.so");
+        void * perfServiceLib = dlopen("libperfservicenative.so", RTLD_NOW);
+        if (perfServiceLib == NULL) {
+            ALOGE("Cannot open libperfservicenative.so");
+        } else {
+            gPerfServiceBoostEnableAsyncPtr = (PerfServiceBoostEnableAsyncPtr)
+                dlsym(perfServiceLib, "PerfServiceNative_boostEnableAsync");
+            if (gPerfServiceBoostEnableAsyncPtr == NULL) {
+                ALOGE("Cannot get PerfServiceNative_boostEnableAsync ptr");
+            }
+            gPerfServiceBoostEnableTimeoutAsyncPtr = (PerfServiceBoostEnableTimeoutAsyncPtr)
+                dlsym(perfServiceLib, "PerfServiceNative_boostEnableTimeoutAsync");
+            if (gPerfServiceBoostEnableTimeoutAsyncPtr == NULL) {
+                ALOGE("Cannot get PerfServiceNative_boostEnableTimeoutAsync ptr");
+            }
+            gPerfServiceBoostDisableAsyncPtr = (PerfServiceBoostDisableAsyncPtr)
+                dlsym(perfServiceLib, "PerfServiceNative_boostDisableAsync");
+            if (gPerfServiceBoostDisableAsyncPtr == NULL) {
+                ALOGE("Cannot get PerfServiceNative_boostDisableAsync ptr");
+            }
+            if (gPerfServiceBoostEnableAsyncPtr == NULL && gPerfServiceBoostEnableTimeoutAsyncPtr == NULL &&
+                    gPerfServiceBoostDisableAsyncPtr == NULL) {
+                ALOGE("Cannot get PerfServiceNative ptrs, closing library");
+                dlclose(perfServiceLib);
+                gPerfServiceBoostEnableAsyncPtr = NULL;
+                gPerfServiceBoostEnableTimeoutAsyncPtr = NULL;
+                gPerfServiceBoostDisableAsyncPtr = NULL;
+            }
+        }
+    }
 
     policy->getDispatcherConfiguration(&mConfig);
 }
@@ -866,6 +909,17 @@ bool InputDispatcher::dispatchMotionLocked(
                 "conflicting pointer actions");
         synthesizeCancelationEventsForAllConnectionsLocked(options);
     }
+    // MTK
+    if (entry->action == AMOTION_EVENT_ACTION_UP || entry->action == AMOTION_EVENT_ACTION_CANCEL) {
+        if (gPerfServiceBoostDisableAsyncPtr != NULL) {
+            (void)gPerfServiceBoostDisableAsyncPtr(SCN_APP_TOUCH);
+        }
+    } else if (entry->action == AMOTION_EVENT_ACTION_DOWN) {
+        if (gPerfServiceBoostEnableAsyncPtr != NULL) {
+            (void)gPerfServiceBoostEnableAsyncPtr(SCN_APP_TOUCH);
+        }
+    }
+    // end MTK
     dispatchEventLocked(currentTime, entry, inputTargets);
     return true;
 }

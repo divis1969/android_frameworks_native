@@ -32,7 +32,8 @@ LOCAL_SHARED_LIBRARIES := \
     liblog \
     libutils \
 	libui \
-	libhardware_legacy
+	libhardware_legacy \
+    libdl
 
 
 # TODO: Move inputflinger to its own process and mark it hidden
